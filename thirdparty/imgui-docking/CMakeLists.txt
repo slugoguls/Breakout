@@ -1,7 +1,10 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 project(imgui)
 
 add_library(imgui)
+if(MSVC)
+    set_property(TARGET imgui PROPERTY MSVC_RUNTIME_LIBRARY "$<$<CONFIG:Debug>:MultiThreadedDebug>$<$<CONFIG:Release>:MultiThreaded>")
+endif()
 target_sources(imgui PRIVATE 
 "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp"
 "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_demo.cpp"
