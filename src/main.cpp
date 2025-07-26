@@ -2,7 +2,6 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <openglDebug.h>
-#include <demoShaderLoader.h>
 #include <iostream>
 
 
@@ -59,10 +58,6 @@ int main(void)
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 #pragma endregion
 
-	//shader loading example
-	Shader s;
-	s.loadShaderProgramFromFile(RESOURCES_PATH "vertex.vert", RESOURCES_PATH "fragment.frag");
-	s.bind();
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -86,10 +81,5 @@ int main(void)
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-
-	//there is no need to call the clear function for the libraries since the os will do that for us.
-	//by calling this functions we are just wasting time.
-	//glfwDestroyWindow(window);
-	//glfwTerminate();
 	return 0;
 }
