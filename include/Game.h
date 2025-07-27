@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 
 #include "gameLevel.h"
+#include "powerUp.h"
 
 // Represents the current state of the game
 enum GameState {
@@ -19,7 +20,6 @@ enum Direction {
     DOWN,
     LEFT
 };
-
 // Defines a Collision typedef that represents collision data
 typedef std::tuple<bool, Direction, glm::vec2> Collision; // <collision?, what direction?, difference vector center - closest point>
 
@@ -32,6 +32,7 @@ const glm::vec2 INITIAL_BALL_VELOCITY(100.0f, -350.0f);
 // Radius of the ball object
 const float BALL_RADIUS = 12.5f;
 
+
 class Game
 {
 public:
@@ -40,6 +41,7 @@ public:
     bool                    Keys[1024];
     unsigned int            Width, Height;
     std::vector<GameLevel>  Levels;
+    std::vector<PowerUp>    PowerUps;
     unsigned int            Level;
     // constructor/destructor
     Game(unsigned int width, unsigned int height);
@@ -54,5 +56,9 @@ public:
     // reset
     void ResetLevel();
     void ResetPlayer();
+    // powerups
+    void SpawnPowerUps(GameObject& block);
+    void UpdatePowerUps(float dt);
 };
+
 
