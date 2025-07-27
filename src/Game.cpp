@@ -1,3 +1,7 @@
+#include <algorithm>
+#include <sstream>
+#include <iostream>
+
 #include "game.h"
 #include "resourceManager.h"
 #include "spriteRenderer.h"
@@ -5,17 +9,22 @@
 #include "ballObject.h"
 #include "particleGenerator.h"
 #include "postProcessor.h"
+#include "textRenderer.h"
 
+
+// Game-related State data
 SpriteRenderer* Renderer;
 GameObject* Player;
 BallObject* Ball;
 ParticleGenerator* Particles;
 PostProcessor* Effects;
+TextRenderer* Text;
 
 float ShakeTime = 0.0f;
 
+
 Game::Game(unsigned int width, unsigned int height)
-    : State(GAME_ACTIVE), Keys(), Width(width), Height(height)
+    : State(GAME_MENU), Keys(), KeysProcessed(), Width(width), Height(height), Level(0), Lives(3)
 {
 
 }
@@ -27,18 +36,18 @@ Game::~Game()
     delete Ball;
     delete Particles;
     delete Effects;
+    delete Text;
 }
 
 void Game::Init()
 {
     // load shaders
-    ResourceManager::LoadShader(RESOURCES_PATH"shaders/sprite.vert", RESOURCES_PATH "shaders/sprite.frag", nullptr, "sprite");
-    ResourceManager::LoadShader(RESOURCES_PATH"shaders/particle.vert", RESOURCES_PATH "shaders/particle.frag", nullptr, "particle");
-    ResourceManager::LoadShader(RESOURCES_PATH"shaders/post_processing.vert", RESOURCES_PATH "shaders/post_processing.frag", nullptr, "postprocessing");
+    ResourceManager::LoadShader(RESOURCES_PATH"shaders/sprite.vert", RESOURCES_PATH"shaders/sprite.frag", nullptr, "sprite");
+    ResourceManager::LoadShader(RESOURCES_PATH"shaders/particle.vert", RESOURCES_PATH"shaders/particle.frag", nullptr, "particle");
+    ResourceManager::LoadShader(RESOURCES_PATH"shaders/post_processing.vert", RESOURCES_PATH"shaders/post_processing.frag", nullptr, "postprocessing");
     // configure shaders
-    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(this->Width),
-        static_cast<float>(this->Height), 0.0f, -1.0f, 1.0f);
-    ResourceManager::GetShader("sprite").Use().SetInteger("image", 0);
+    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(this->Width), static_cast<float>(this->Height), 0.0f, -1.0f, 1.0f);
+    ResourceManager::GetShader("sprite").Use().SetInteger("sprite", 0);
     ResourceManager::GetShader("sprite").SetMatrix4("projection", projection);
     ResourceManager::GetShader("particle").Use().SetInteger("sprite", 0);
     ResourceManager::GetShader("particle").SetMatrix4("projection", projection);
@@ -59,6 +68,8 @@ void Game::Init()
     Renderer = new SpriteRenderer(ResourceManager::GetShader("sprite"));
     Particles = new ParticleGenerator(ResourceManager::GetShader("particle"), ResourceManager::GetTexture("particle"), 500);
     Effects = new PostProcessor(ResourceManager::GetShader("postprocessing"), this->Width, this->Height);
+    Text = new TextRenderer(this->Width, this->Height);
+    Text->Load(RESOURCES_PATH"OCRAEXT.TTF", 24);
     // load levels
     GameLevel one; one.Load(RESOURCES_PATH"levels/one.lvl", this->Width, this->Height / 2);
     GameLevel two; two.Load(RESOURCES_PATH"levels/two.lvl", this->Width, this->Height / 2);
@@ -74,6 +85,7 @@ void Game::Init()
     Player = new GameObject(playerPos, PLAYER_SIZE, ResourceManager::GetTexture("paddle"));
     glm::vec2 ballPos = playerPos + glm::vec2(PLAYER_SIZE.x / 2.0f - BALL_RADIUS, -BALL_RADIUS * 2.0f);
     Ball = new BallObject(ballPos, BALL_RADIUS, INITIAL_BALL_VELOCITY, ResourceManager::GetTexture("face"));
+
 }
 
 void Game::Update(float dt)
@@ -96,13 +108,59 @@ void Game::Update(float dt)
     // check loss condition
     if (Ball->Position.y >= this->Height) // did ball reach bottom edge?
     {
+        --this->Lives;
+        // did the player lose all his lives? : game over
+        if (this->Lives == 0)
+        {
+            this->ResetLevel();
+            this->State = GAME_MENU;
+        }
+        this->ResetPlayer();
+    }
+    // check win condition
+    if (this->State == GAME_ACTIVE && this->Levels[this->Level].IsCompleted())
+    {
         this->ResetLevel();
         this->ResetPlayer();
+        Effects->Chaos = true;
+        this->State = GAME_WIN;
     }
 }
 
+
 void Game::ProcessInput(float dt)
 {
+    if (this->State == GAME_MENU)
+    {
+        if (this->Keys[GLFW_KEY_ENTER] && !this->KeysProcessed[GLFW_KEY_ENTER])
+        {
+            this->State = GAME_ACTIVE;
+            this->KeysProcessed[GLFW_KEY_ENTER] = true;
+        }
+        if (this->Keys[GLFW_KEY_W] && !this->KeysProcessed[GLFW_KEY_W])
+        {
+            this->Level = (this->Level + 1) % 4;
+            this->KeysProcessed[GLFW_KEY_W] = true;
+        }
+        if (this->Keys[GLFW_KEY_S] && !this->KeysProcessed[GLFW_KEY_S])
+        {
+            if (this->Level > 0)
+                --this->Level;
+            else
+                this->Level = 3;
+            //this->Level = (this->Level - 1) % 4;
+            this->KeysProcessed[GLFW_KEY_S] = true;
+        }
+    }
+    if (this->State == GAME_WIN)
+    {
+        if (this->Keys[GLFW_KEY_ENTER])
+        {
+            this->KeysProcessed[GLFW_KEY_ENTER] = true;
+            Effects->Chaos = false;
+            this->State = GAME_MENU;
+        }
+    }
     if (this->State == GAME_ACTIVE)
     {
         float velocity = PLAYER_VELOCITY * dt;
@@ -132,7 +190,7 @@ void Game::ProcessInput(float dt)
 
 void Game::Render()
 {
-    if (this->State == GAME_ACTIVE)
+    if (this->State == GAME_ACTIVE || this->State == GAME_MENU || this->State == GAME_WIN)
     {
         // begin rendering to postprocessing framebuffer
         Effects->BeginRender();
@@ -154,6 +212,19 @@ void Game::Render()
         Effects->EndRender();
         // render postprocessing quad
         Effects->Render(glfwGetTime());
+        // render text (don't include in postprocessing)
+        std::stringstream ss; ss << this->Lives;
+        Text->RenderText("Lives:" + ss.str(), 5.0f, 5.0f, 1.0f);
+    }
+    if (this->State == GAME_MENU)
+    {
+        Text->RenderText("Press ENTER to start", 250.0f, this->Height / 2.0f, 1.0f);
+        Text->RenderText("Press W or S to select level", 245.0f, this->Height / 2.0f + 20.0f, 0.75f);
+    }
+    if (this->State == GAME_WIN)
+    {
+        Text->RenderText("You WON!!!", 320.0f, this->Height / 2.0f - 20.0f, 1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+        Text->RenderText("Press ENTER to retry or ESC to quit", 130.0f, this->Height / 2.0f, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f));
     }
 }
 
@@ -168,6 +239,8 @@ void Game::ResetLevel()
         this->Levels[2].Load("levels/three.lvl", this->Width, this->Height / 2);
     else if (this->Level == 3)
         this->Levels[3].Load("levels/four.lvl", this->Width, this->Height / 2);
+
+    this->Lives = 3;
 }
 
 void Game::ResetPlayer()
@@ -182,6 +255,7 @@ void Game::ResetPlayer()
     Player->Color = glm::vec3(1.0f);
     Ball->Color = glm::vec3(1.0f);
 }
+
 
 // powerups
 bool IsOtherPowerUpActive(std::vector<PowerUp>& powerUps, std::string type);
@@ -305,6 +379,7 @@ bool IsOtherPowerUpActive(std::vector<PowerUp>& powerUps, std::string type)
     }
     return false;
 }
+
 
 // collision detection
 bool CheckCollision(GameObject& one, GameObject& two);

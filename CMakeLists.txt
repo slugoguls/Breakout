@@ -45,9 +45,9 @@ if(MSVC) # If using the VS compiler...
 endif()
 
 
-target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/" "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/stb_image/include/stb_image/")
+target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/" "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/stb_image/include/stb_image/" "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/freetype-windows-binaries-master/include/")
 
 
 target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE glm glfw 
-	glad stb_image stb_truetype imgui)
+	glad stb_image stb_truetype imgui "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/freetype-windows-binaries-master/release static/vs2015-2022/win64/freetype.lib")
 
