@@ -41,8 +41,9 @@ Rebuilding it from the ground up allowed me to explore graphics programming whil
 
 ## 🎥 Gameplay Demo
 
-[Watch Gameplay Video 1](./win.mp4)  
-[Watch Gameplay Video 2](./powerUp.mp4)
+![Watch Gameplay Video 1](./win.gif)  
+
+![Watch Gameplay Video 2](./powerUp.gif)
 
 ---
 
