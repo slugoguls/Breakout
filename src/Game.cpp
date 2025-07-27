@@ -113,7 +113,7 @@ void Game::Update(float dt)
         if (this->Lives == 0)
         {
             this->ResetLevel();
-            this->State = GAME_MENU;
+            this->State = GAME_LOSE;
         }
         this->ResetPlayer();
     }
@@ -127,6 +127,11 @@ void Game::Update(float dt)
     }
 }
 
+
+#include <random>
+#include <chrono>
+
+// ... (rest of the includes)
 
 void Game::ProcessInput(float dt)
 {
@@ -148,20 +153,28 @@ void Game::ProcessInput(float dt)
                 --this->Level;
             else
                 this->Level = 3;
-            //this->Level = (this->Level - 1) % 4;
             this->KeysProcessed[GLFW_KEY_S] = true;
         }
     }
-    if (this->State == GAME_WIN)
+    else if (this->State == GAME_WIN)
     {
-        if (this->Keys[GLFW_KEY_ENTER])
+        if (this->Keys[GLFW_KEY_ENTER] && !this->KeysProcessed[GLFW_KEY_ENTER])
         {
             this->KeysProcessed[GLFW_KEY_ENTER] = true;
             Effects->Chaos = false;
             this->State = GAME_MENU;
         }
     }
-    if (this->State == GAME_ACTIVE)
+    else if (this->State == GAME_LOSE)
+    {
+        if (this->Keys[GLFW_KEY_ENTER] && !this->KeysProcessed[GLFW_KEY_ENTER])
+        {
+            this->KeysProcessed[GLFW_KEY_ENTER] = true;
+            this->LoadRandomLevel(); // Load a random level
+            this->State = GAME_MENU;
+        }
+    }
+    else if (this->State == GAME_ACTIVE)
     {
         float velocity = PLAYER_VELOCITY * dt;
         // move playerboard
@@ -226,19 +239,24 @@ void Game::Render()
         Text->RenderText("You WON!!!", 320.0f, this->Height / 2.0f - 20.0f, 1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
         Text->RenderText("Press ENTER to retry or ESC to quit", 130.0f, this->Height / 2.0f, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f));
     }
+    if (this->State == GAME_LOSE)
+    {
+        Text->RenderText("Nice Try!!!", 320.0f, this->Height / 2.0f - 20.0f, 1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+        Text->RenderText("Press ENTER to go back to the start", 130.0f, this->Height / 2.0f, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f));
+    }
 }
 
 
 void Game::ResetLevel()
 {
     if (this->Level == 0)
-        this->Levels[0].Load("levels/one.lvl", this->Width, this->Height / 2);
+        this->Levels[0].Load(RESOURCES_PATH"levels/one.lvl", this->Width, this->Height / 2);
     else if (this->Level == 1)
-        this->Levels[1].Load("levels/two.lvl", this->Width, this->Height / 2);
+        this->Levels[1].Load(RESOURCES_PATH"levels/two.lvl", this->Width, this->Height / 2);
     else if (this->Level == 2)
-        this->Levels[2].Load("levels/three.lvl", this->Width, this->Height / 2);
+        this->Levels[2].Load(RESOURCES_PATH"levels/three.lvl", this->Width, this->Height / 2);
     else if (this->Level == 3)
-        this->Levels[3].Load("levels/four.lvl", this->Width, this->Height / 2);
+        this->Levels[3].Load(RESOURCES_PATH"levels/four.lvl", this->Width, this->Height / 2);
 
     this->Lives = 3;
 }
@@ -254,6 +272,16 @@ void Game::ResetPlayer()
     Ball->PassThrough = Ball->Sticky = false;
     Player->Color = glm::vec3(1.0f);
     Ball->Color = glm::vec3(1.0f);
+}
+
+void Game::LoadRandomLevel()
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distrib(0, this->Levels.size() - 1);
+    this->Level = distrib(gen);
+    this->Levels[this->Level].Load((RESOURCES_PATH"levels/" + std::vector<std::string>{"one.lvl", "two.lvl", "three.lvl", "four.lvl"}[this->Level]).c_str(), this->Width, this->Height / 2);
+    this->Lives = 3;
 }
 
 

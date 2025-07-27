@@ -13,7 +13,8 @@
 enum GameState {
     GAME_ACTIVE,
     GAME_MENU,
-    GAME_WIN
+    GAME_WIN,
+    GAME_LOSE
 };
 
 // Represents the four possible (collision) directions
@@ -60,6 +61,7 @@ public:
     // reset
     void ResetLevel();
     void ResetPlayer();
+    void LoadRandomLevel();
     // powerups
     void SpawnPowerUps(GameObject& block);
     void UpdatePowerUps(float dt);
